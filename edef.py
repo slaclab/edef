@@ -43,28 +43,26 @@ def get_system():
 Instantiate an EventDefinition to reserve an edef.  Configure it,
 then start data aquisition with the 'start' method."""
 class EventDefinition(object):
-	def __init__(self, name, user=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
+	def __init__(self, name, edef_number=None, user=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
 		(self.sys, self.accelerator) = get_system()
 		self.ioc_location = self.sys
 		if self.accelerator == 'LCLS':
 			self.ioc_location = 'IN20'
-		self.edef_num = self.reserve_edef(name, self.sys, self.accelerator, user=user)
-		print("Reserved EDEF {}".format(self.edef_num))
-		
+		if edef_number is None:
+			self.edef_num = self.reserve_edef(name, self.sys, self.accelerator, user=user)
+			print("Reserved EDEF {}".format(self.edef_num))
+		else:
+			self.edef_num = edef_number
 		self.n_avg_pv = epics.PV("EDEF:{sys}:{num}:AVGCNT".format(sys=self.sys, num=self.edef_num))
 		self._avg_callback = None
 		self._avg_callback_index = None
 		if avg_callback is not None:
 			self.avg_callback = avg_callback
-		self.n_avg = avg
-		
 		self.n_measurements_pv = epics.PV("EDEF:{sys}:{num}:MEASCNT".format(sys=self.sys, num=self.edef_num))
 		self._measurements_callback = None
 		self._measurements_callback_index = None
 		if measurements_callback is not None:
 			self.measurements_callback = measurements_callback
-		self.n_measurements = measurements
-		
 		self.ctrl_pv = epics.PV("EDEF:{sys}:{num}:CTRL".format(sys=self.sys, num=self.edef_num))
 		self._ctrl_callback = None
 		self._ctrl_callback_index = None
@@ -72,10 +70,14 @@ class EventDefinition(object):
 			self.ctrl_callback = ctrl_callback
 		self.bit_mask_name_cache = {}
 		self.bit_mask_reverse_cache = {}
-		if inclusion_masks is not None:
-			self.inclusion_masks = inclusion_masks
-		if exclusion_masks is not None:
-			self.exclusion_masks = exclusion_masks
+		if edef_number is None:
+			#We only change the configuration of the edef if it is a brand new one.
+			self.n_avg = avg
+			self.n_measurements = measurements
+			if inclusion_masks is not None:
+				self.inclusion_masks = inclusion_masks
+			if exclusion_masks is not None:
+				self.exclusion_masks = exclusion_masks
 
 	def reserve_edef(self, name, sys, accelerator, user=None):
 		epics.caput("IOC:{iocloc}:EV01:EDEFNAME".format(iocloc=self.ioc_location), name, wait=True)
