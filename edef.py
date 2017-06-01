@@ -43,7 +43,7 @@ def get_system():
 Instantiate an EventDefinition to reserve an edef.  Configure it,
 then start data aquisition with the 'start' method."""
 class EventDefinition(object):
-	def __init__(self, name, edef_number=None, user=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
+	def __init__(self, name, user=None, edef_number=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
 		(self.sys, self.accelerator) = get_system()
 		self.ioc_location = self.sys
 		if self.accelerator == 'LCLS':
