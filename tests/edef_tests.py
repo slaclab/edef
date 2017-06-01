@@ -30,6 +30,41 @@ class EdefReservationTest(unittest.TestCase):
 		except:
 			pass
 
+class ExistingEdefTest(unittest.TestCase):
+	def setUp(self):
+		(self.sys, self.accelerator) = edef.get_system()
+		if self.accelerator == 'LCLS':
+			self.ioc_location = 'IN20'
+		#Reserve an edef manually
+		self.name = "edef.py unit tests {}".format(randint(0,255))
+		epics.caput("IOC:{iocloc}:EV01:EDEFNAME".format(iocloc=self.ioc_location), self.name)
+		#Find the number of the edef we just reserved
+		self.edef_num = None
+		for i in range(1,16):
+			name = epics.caget("EDEF:{sys}:{num}:NAME".format(sys=self.sys, num=i))
+			if name == self.name:
+				self.edef_num = i
+				break
+		if self.edef_num is None:
+			raise RuntimeError('Manual edef reservation failed, cannot proceed with test.')
+	
+	def test_existing_configuration_not_overwritten(self):
+		if self.edef_num is None:
+			raise RuntimeError('Manual edef reservation failed, cannot proceed with test.')
+		num_avg = 13
+		epics.caput("EDEF:{sys}:{num}:AVGCNT".format(sys=self.sys, num=self.edef_num), num_avg)
+		num_meas = 20
+		epics.caput("EDEF:{sys}:{num}:MEASCNT".format(sys=self.sys, num=self.edef_num), num_meas)
+		edef_obj = edef.EventDefinition("should ignore", edef_number=self.edef_num, avg=1, measurements=1)
+		self.assertEqual(edef_obj.n_avg, num_avg)
+		self.assertEqual(edef_obj.n_measurements, num_meas)
+		current_name = epics.caget("EDEF:{sys}:{num}:NAME".format(sys=self.sys, num=self.edef_num))
+		self.assertEqual(current_name, self.name)
+		
+	def tearDown(self):
+		#Manually release the edef we reserved in setup.
+		if self.edef_num is not None:
+			epics.caput("EDEF:{sys}:{num}:FREE".format(sys=self.sys, num=self.edef_num), 1)		
 
 class EdefReleaseTest(unittest.TestCase):
 	def setUp(self):
