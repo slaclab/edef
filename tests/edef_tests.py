@@ -44,6 +44,7 @@ class ExistingEdefTest(unittest.TestCase):
 			name = epics.caget("EDEF:{sys}:{num}:NAME".format(sys=self.sys, num=i))
 			if name == self.name:
 				self.edef_num = i
+				time.sleep(1.0) #Give the edef a bit of time to initialize.
 				break
 		if self.edef_num is None:
 			raise RuntimeError('Manual edef reservation failed, cannot proceed with test.')
