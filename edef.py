@@ -43,7 +43,7 @@ def get_system():
 Instantiate an EventDefinition to reserve an edef.  Configure it,
 then start data aquisition with the 'start' method."""
 class EventDefinition(object):
-    def __init__(self, name, user=None, edef_number=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
+    def __init__(self, name, user=None, edef_number=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None, beamcode_callback=None):
         (self.sys, self.accelerator) = get_system()
         self.ioc_location = self.sys
         if self.accelerator == 'LCLS':
@@ -58,6 +58,11 @@ class EventDefinition(object):
         self._avg_callback_index = None
         if avg_callback is not None:
             self.avg_callback = avg_callback
+        self.beamcode_pv = epics.PV("EDEF:{sys}:{num}:BEAMCODE".format(sys=self.sys, num=self.edef_num))
+        self._beamcode_callback = None
+        self._beamcode_callback_index = None
+        if beamcode_callback is not None:
+            self.beamcode_callback = beamcode_callback
         self.n_measurements_pv = epics.PV("EDEF:{sys}:{num}:MEASCNT".format(sys=self.sys, num=self.edef_num))
         self._measurements_callback = None
         self._measurements_callback_index = None
@@ -207,6 +212,36 @@ class EventDefinition(object):
         self._measurements_callback = new_callback
         if new_callback is not None:
             self._measurements_callback_index = self.n_measurements_pv.add_callback(new_callback)
+    
+    @property
+    def beamcode(self):
+        return self.beamcode_pv.get()
+    
+    @beamcode.setter
+    def beamcode(self, bc):
+        self.beamcode_pv.put(bc)
+    
+    @property
+    def beamcode_callback(self):
+        """A method to be called when the beamcode changes.
+        This callback will fire whenever the edef's BEAMCODE PV changes,
+        even if it happens outside this module.
+
+        The method will be run by PyEPICS when the BEAMCODE PV changes, so it must use the PyEPICS
+        callback method signature: method_name(pvname=None, value=None, **kw)
+        To remove the callback, set beamcode_callback to None.
+        """
+        return self._beamcode_callback
+
+    @beamcode_callback.setter
+    def beamcode_callback(self, new_callback):
+        if new_callback == self._beamcode_callback:
+            return
+        if self._beamcode_callback is not None:
+            self.beamcode_pv.remove_callback(self._beamcode_callback_index)
+        self._beamcode_callback = new_callback
+        if new_callback is not None:
+            self._beamcode_callback_index = self.beamcode_pv.add_callback(new_callback)
     
     @property
     def inclusion_masks(self):
