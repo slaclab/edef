@@ -5,6 +5,7 @@ Author: Matt Gibbs (mgibbs@slac.stanford.edu)
 import epics
 import os
 import time
+from functools import partial
 from epics_batch_get import batch_get
 
 NUM_MASK_BITS = 160
@@ -124,8 +125,9 @@ class EventDefinition(object):
     @property
     def ctrl_callback(self):
         """A method to be called when the edef's ctrl state (whether or not the edef is 'on') changes.
-        This method will be run by PyEPICS when the ctrl PV changes, so it must use the PyEPICS callback
-        method signature: method_name(pvname=None, value=None, **kw)
+        
+        The method must take one argument: the new value of the CTRL state.
+        
         To remove the callback, set ctrl_callback to None.
         """
         return self._ctrl_callback
@@ -138,7 +140,11 @@ class EventDefinition(object):
             self.ctrl_pv.remove_callback(self._ctrl_callback_index)
         self._ctrl_callback = new_callback
         if new_callback is not None:
-            self._ctrl_callback_index = self.ctrl_pv.add_callback(new_callback)
+            full_cb = partial(self._ctrl_callback_full, new_callback)
+            self._ctrl_callback_index = self.ctrl_pv.add_callback(full_cb)
+    
+    def _ctrl_callback_full(self, user_cb, value=None, **kw):
+        user_cb(value)
     
     @property
     def n_avg(self):
@@ -160,8 +166,8 @@ class EventDefinition(object):
         This callback will fire whenever the edef's AVGCNT PV changes,
         even if it happens outside this module.
 
-        The method will be run by PyEPICS when the AVGCNT PV changes, so it must use the PyEPICS
-        callback method signature: method_name(pvname=None, value=None, **kw)
+        The method must take one argument: the number of averages.
+        
         To remove the callback, set avg_callback to None.
         """
         return self._avg_callback
@@ -174,7 +180,11 @@ class EventDefinition(object):
             self.n_avg_pv.remove_callback(self._avg_callback_index)
         self._avg_callback = new_callback
         if new_callback is not None:
-            self._avg_callback_index = self.n_avg_pv.add_callback(new_callback)
+            full_cb = partial(self._avg_callback_full, new_callback)
+            self._avg_callback_index = self.n_avg_pv.add_callback(full_cb)
+    
+    def _avg_callback_full(self, user_cb, value=None, **kw):
+        user_cb(value)
     
     @property
     def n_measurements(self):
@@ -197,8 +207,8 @@ class EventDefinition(object):
         This callback will fire whenever the edef's MEASCNT PV changes,
         even if it happens outside this module.
 
-        The method will be run by PyEPICS when the MEASCNT PV changes, so it must use the PyEPICS
-        callback method signature: method_name(pvname=None, value=None, **kw)
+        The method must take one argument: the number of measurements.
+        
         To remove the callback, set measurements_callback to None.
         """
         return self._measurements_callback
@@ -211,7 +221,11 @@ class EventDefinition(object):
             self.n_measurements_pv.remove_callback(self._measurements_callback_index)
         self._measurements_callback = new_callback
         if new_callback is not None:
-            self._measurements_callback_index = self.n_measurements_pv.add_callback(new_callback)
+            full_cb = partial(self._measurements_callback_full, new_callback)
+            self._measurements_callback_index = self.n_measurements_pv.add_callback(full_cb)
+    
+    def _measurements_callback_full(self, user_cb, value=None, **kw):
+        user_cb(value)
     
     @property
     def beamcode(self):
@@ -227,8 +241,8 @@ class EventDefinition(object):
         This callback will fire whenever the edef's BEAMCODE PV changes,
         even if it happens outside this module.
 
-        The method will be run by PyEPICS when the BEAMCODE PV changes, so it must use the PyEPICS
-        callback method signature: method_name(pvname=None, value=None, **kw)
+        The method must take one argument: the beamcode number.
+        
         To remove the callback, set beamcode_callback to None.
         """
         return self._beamcode_callback
@@ -241,7 +255,11 @@ class EventDefinition(object):
             self.beamcode_pv.remove_callback(self._beamcode_callback_index)
         self._beamcode_callback = new_callback
         if new_callback is not None:
-            self._beamcode_callback_index = self.beamcode_pv.add_callback(new_callback)
+            full_cb = partial(self._beamcode_callback_full, new_callback)
+            self._beamcode_callback_index = self.beamcode_pv.add_callback(full_cb)
+    
+    def _beamcode_callback_full(self, user_cb, value=None, **kw):
+        user_cb(value)
     
     @property
     def inclusion_masks(self):
