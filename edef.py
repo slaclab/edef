@@ -6,6 +6,7 @@ import epics
 import os
 import time
 from functools import partial
+from contextlib import contextmanager
 from epics_batch_get import batch_get
 
 NUM_MASK_BITS = 160
@@ -74,6 +75,8 @@ class EventDefinition(object):
         self._ctrl_callback_index = None
         if ctrl_callback is not None:
             self.ctrl_callback = ctrl_callback
+        self.num_to_acquire_pv = epics.PV("EDEF:{sys}:{num}:CNTMAX".format(sys=self.sys, num=self.edef_num))
+        self.num_acquired_pv = epics.PV("EDEF:{sys}:{num}:CNT".format(sys=self.sys, num=self.edef_num))
         self.bit_mask_name_cache = {}
         self.bit_mask_reverse_cache = {}
         if edef_number is None:
@@ -325,7 +328,7 @@ class EventDefinition(object):
             self.bit_mask_name_cache[mask_name] = chid[1]
         self.bit_mask_reverse_cache = {num: name for name, num in self.bit_mask_name_cache.iteritems()}
 
-    def start(self):
+    def start(self, callback=None):
         """Starts data acquisition. 
                 This is equivalent to clicking the 'On' button on the edef's EDM panel.
         Raises an exception if the edef was not properly reserved.
@@ -335,8 +338,23 @@ class EventDefinition(object):
         if not self.is_reserved():
             raise Exception("EDEF was not reserved, cannot acquire data.")
             return False
+        if callback is not None:
+            num_to_acquire = self.num_to_acquire_pv.get()
+            full_done_cb = partial(self._done_callback, num_to_acquire, callback)
+            self.num_acquired_pv.add_callback(full_done_cb)
         self.ctrl_pv.put(1)
         return True
+
+    def _done_callback(self, num_to_acquire, user_cb, value=None, cb_info=None, **kws):
+        if value != num_to_acquire:
+            return
+        else:
+            user_cb()
+            cb_info[1].remove_callback(cb_info[0])  
+
+    def wait_for_complete(self):
+        while not self.is_acquisition_complete():
+            time.sleep(0.05)
 
     def is_acquisition_complete(self):
         """Checks if the edef is done collecting data.
@@ -348,11 +366,9 @@ class EventDefinition(object):
         """
         if not self.is_reserved():
             raise Exception("EDEF was not reserved, could not acquire data.")
-        status = self.ctrl_pv.get()
-        if status == 1:
-            return False
-        else:
-            return True
+        num_to_acquire = self.num_to_acquire_pv.get()
+        num_acquired = self.num_acquired_pv.get()
+        return num_acquired == num_to_acquire
 
     def buffer_pv(self, pv, suffix='HST'):
         return "{pv}{suffix}{num}".format(pv=pv, suffix=suffix, num=self.edef_num)
