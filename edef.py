@@ -45,7 +45,7 @@ def get_system():
 Instantiate an EventDefinition to reserve an edef.  Configure it,
 then start data aquisition with the 'start' method."""
 class EventDefinition(object):
-    def __init__(self, name, user=None, edef_number=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None, beamcode_callback=None):
+    def __init__(self, name, user=None, edef_number=None, avg=1, measurements=-1, inclusion_masks=None, exclusion_masks=None, beamcode=None, avg_callback=None, measurements_callback=None, ctrl_callback=None, beamcode_callback=None):
         (self.sys, self.accelerator) = get_system()
         self.ioc_location = self.sys
         if self.accelerator == 'LCLS':
@@ -56,25 +56,9 @@ class EventDefinition(object):
         else:
             self.edef_num = edef_number
         self.n_avg_pv = epics.PV("EDEF:{sys}:{num}:AVGCNT".format(sys=self.sys, num=self.edef_num))
-        self._avg_callback = None
-        self._avg_callback_index = None
-        if avg_callback is not None:
-            self.avg_callback = avg_callback
         self.beamcode_pv = epics.PV("EDEF:{sys}:{num}:BEAMCODE".format(sys=self.sys, num=self.edef_num))
-        self._beamcode_callback = None
-        self._beamcode_callback_index = None
-        if beamcode_callback is not None:
-            self.beamcode_callback = beamcode_callback
         self.n_measurements_pv = epics.PV("EDEF:{sys}:{num}:MEASCNT".format(sys=self.sys, num=self.edef_num))
-        self._measurements_callback = None
-        self._measurements_callback_index = None
-        if measurements_callback is not None:
-            self.measurements_callback = measurements_callback
         self.ctrl_pv = epics.PV("EDEF:{sys}:{num}:CTRL".format(sys=self.sys, num=self.edef_num))
-        self._ctrl_callback = None
-        self._ctrl_callback_index = None
-        if ctrl_callback is not None:
-            self.ctrl_callback = ctrl_callback
         self.num_to_acquire_pv = epics.PV("EDEF:{sys}:{num}:CNTMAX".format(sys=self.sys, num=self.edef_num))
         self.num_acquired_pv = epics.PV("EDEF:{sys}:{num}:CNT".format(sys=self.sys, num=self.edef_num))
         self.bit_mask_name_cache = {}
@@ -87,6 +71,25 @@ class EventDefinition(object):
                 self.inclusion_masks = inclusion_masks
             if exclusion_masks is not None:
                 self.exclusion_masks = exclusion_masks
+            if beamcode is not None:
+                self.beamcode = beamcode
+        # Now that we've set initial values for PVs, we can install callbacks.
+        self._avg_callback = None
+        self._avg_callback_index = None
+        if avg_callback is not None:
+            self.avg_callback = avg_callback
+        self._beamcode_callback = None
+        self._beamcode_callback_index = None
+        if beamcode_callback is not None:
+            self.beamcode_callback = beamcode_callback
+        self._measurements_callback = None
+        self._measurements_callback_index = None
+        if measurements_callback is not None:
+            self.measurements_callback = measurements_callback
+        self._ctrl_callback = None
+        self._ctrl_callback_index = None
+        if ctrl_callback is not None:
+            self.ctrl_callback = ctrl_callback
 
     def reserve_edef(self, name, sys, accelerator, user=None):
         epics.caput("IOC:{iocloc}:EV01:EDEFNAME".format(iocloc=self.ioc_location), name, wait=True)
