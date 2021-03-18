@@ -466,3 +466,9 @@ class EventDefinition(object):
         if not self.is_reserved():
             raise Exception("EDEF was not reserved, cannot release.")
         epics.caput("EDEF:{sys}:{num}:FREE".format(sys=self.sys, num=self.edef_num), 1)
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.release()
