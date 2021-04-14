@@ -348,6 +348,19 @@ class EventDefinition(object):
         self.ctrl_pv.put(1)
         return True
 
+    def stop(self):
+        """Starts data acquisition. 
+                This is equivalent to clicking the 'On' button on the edef's EDM panel.
+        Raises an exception if the edef was not properly reserved.
+        Returns:
+            bool: True if successful, False otherwise.  
+        """ 
+        if not self.is_reserved():
+            raise Exception("EDEF was not reserved, cannot stop acquisition.")
+            return False
+        self.ctrl_pv.put(0)
+        return True
+
     def _done_callback(self, num_to_acquire, user_cb, value=None, cb_info=None, **kws):
         if value != num_to_acquire:
             return
