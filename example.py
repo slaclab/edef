@@ -12,7 +12,7 @@ my_edef.exclusion_maks = ["TS2", "TS3", "TS5", "TS6"]
 # limits of the BSA system (currenly -1 to 2800).
 # -1 means acquire "forever", constantly filling the 2800-point buffer.
 my_edef.n_measurements = 500
-caput("EDEF:SYS0:{edef_num}:BEAMCODE".format(edef_num=my_edef.edef_num), 2)
+my_edef.beamcode = 2
 # Now, start the acquisition.
 my_edef.start()
 
