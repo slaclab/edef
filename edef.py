@@ -9,7 +9,7 @@ from functools import partial
 from contextlib import contextmanager
 from epics_batch_get import batch_get
 
-NUM_MASK_BITS = 160
+NUM_MASK_BITS = 140
 
 def get_system():
     """Gets the accelerator you are currently running on (LCLS, FACET, LCLS2, NLCTA, etc).
@@ -269,67 +269,72 @@ class EventDefinition(object):
     
     @property
     def inclusion_masks(self):
-        pv_prefix = "EDEF:{sys}:{num}:".format(sys=self.sys, num=self.edef_num)
-        incl_pv_template = pv_prefix + "INCM{n}"
-        return self.get_masks(incl_pv_template)
+        return self.get_masks("INCLUSION")
 
     @inclusion_masks.setter
     def inclusion_masks(self, masks):
-        pv_prefix = "EDEF:{sys}:{num}:".format(sys=self.sys, num=self.edef_num)
-        incl_pv_template = pv_prefix + "INCM{n}"
-        self.set_masks(incl_pv_template, masks)
+        self.set_masks("INCLUSION", masks)
 
     @property
     def exclusion_masks(self):
-        pv_prefix = "EDEF:{sys}:{num}:".format(sys=self.sys, num=self.edef_num)
-        excl_pv_template = pv_prefix + "EXCM{n}"
-        return self.get_masks(excl_pv_template)
+        return self.get_masks("EXCLUSION")
 
     @exclusion_masks.setter
     def exclusion_masks(self, masks):
-        pv_prefix = "EDEF:{sys}:{num}:".format(sys=self.sys, num=self.edef_num)
-        excl_pv_template = pv_prefix + "EXCM{n}"
-        self.set_masks(excl_pv_template, masks)
+        self.set_masks("EXCLUSION", masks)
     
-    def get_masks(self, pv_template):
+    def get_masks(self, mask_type):
         if len(self.bit_mask_reverse_cache) == 0:
             self.populate_bit_mask_name_cache()
         masks = []
-        for bit_num in range(1, NUM_MASK_BITS+1):
-            bit_val = epics.caget(pv_template.format(n=bit_num))
-            if bit_val == 1:
+        bit_mask = 0
+        #Combine the five modifiers into a single bit mask
+        pv_template = "EDEF:{sys}:{num}:{mask_type}".format(sys=self.sys, num=self.edef_num, mask_type=mask_type)
+        pv_template += "{n}"
+        for modifier_num in (5, 4, 3, 2, 1):
+            mod_mask = int(epics.caget(pv_template.format(n=modifier_num)))
+            bit_mask = bit_mask | (mod_mask << 32*(modifier_num + 1))
+        #Turn the combined bit mask into a list of modifier bit names
+        for bit_num in self.bit_mask_reverse_cache:
+            bit_val = bit_mask & (1 << (bit_num+32))
+            if bit_val != 0:
                 masks.append(self.bit_mask_reverse_cache[bit_num])
         return masks
 
-    def set_masks(self, pv_template, masks):
+    def set_masks(self, mask_type, masks):
+        self.clear_masks(mask_type)
         if len(self.bit_mask_name_cache) == 0:
             self.populate_bit_mask_name_cache()
+        bit_mask = 0
         if isinstance(masks, dict):
             for mask, val in masks.iteritems():
                 bit_num = self.bit_mask_name_cache[mask]
-                epics.caput(pv_template.format(n=bit_num), val, wait=True)
+                bit_mask = bit_mask | (val << (bit_num + 32))
         else:
             for mask in masks:
                 bit_num = self.bit_mask_name_cache[mask]
-                epics.caput(pv_template.format(n=bit_num), 1, wait=True)
+                bit_mask = bit_mask | (1 << (bit_num + 32))
+        #Now, break the mask up into six different modifiers!
+        for modifier_num in (5, 4, 3, 2, 1):
+            mod_mask = bit_mask & (0xFFFFFFFF << 32*(modifier_num + 1))
+            mod_mask = mod_mask >> 32*(modifier_num + 1)
+            pv_template = "EDEF:{sys}:{num}:{mask_type}".format(sys=self.sys, num=self.edef_num, mask_type=mask_type)
+            pv_template += "{n}"
+            epics.caput(pv_template.format(n=modifier_num), mod_mask, wait=True)
+            time.sleep(0.05)
+
+    def clear_masks(self, mask_type):
+        pvs = ["EDEF:{sys}:{num}:{mask_type}{n}".format(sys=self.sys, num=self.edef_num, mask_type=mask_type, n=num) for num in range(1, 6)]
+        for pv in pvs:
+            epics.caput(pv, 0, wait=True)
 
     def populate_bit_mask_name_cache(self):
-        name_pv_template = ("EDEF:{sys}:{num}:".format(sys=self.sys, num=self.edef_num))+"INCM{n}.DESC"
-        chids = {}
-        for bit_num in range(1, NUM_MASK_BITS+1):
-            pv = (name_pv_template).format(n=bit_num)
-            chid = epics.ca.create_channel(pv, connect=False, auto_cb=False)
-            chids[pv] = (chid, bit_num)
-        for pv, chid in chids.iteritems():
-            epics.ca.connect_channel(chid[0])
-        epics.ca.poll()
-        for pv, chid in chids.iteritems():
-            epics.ca.get(chid[0], wait=False)
-        epics.ca.poll()
-        for pv, chid in chids.iteritems():
-            mask_name = epics.ca.get_complete(chid[0])
-            self.bit_mask_name_cache[mask_name] = chid[1]
-        self.bit_mask_reverse_cache = {num: name for name, num in self.bit_mask_name_cache.iteritems()}
+        bit_name_pvs = ["PNBN:{sys}:{n}:NAME".format(sys=self.sys, n=n) for n in range(1, NUM_MASK_BITS + 1)]
+        bit_pos_pvs = ["PNBN:{sys}:{n}:BITP".format(sys=self.sys, n=n) for n in range(1, NUM_MASK_BITS + 1)]
+        bit_names = epics.caget_many(bit_name_pvs)
+        bit_positions = epics.caget_many(bit_pos_pvs)
+        self.bit_mask_name_cache = {bit_name: bit_position for bit_name, bit_position in zip(bit_names, bit_positions)}
+        self.bit_mask_reverse_cache = {bit_position: bit_name for bit_name, bit_position in zip(bit_names, bit_positions)}
 
     def start(self, callback=None):
         """Starts data acquisition. 
