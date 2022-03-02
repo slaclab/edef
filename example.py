@@ -3,10 +3,10 @@ import time
 
 my_edef = EventDefinition("Matt's EDEF", user="mgibbs") #Will raise an exception if no EDEFs available.
 
-# You can set inclusion/exclusion masks with a dictionary.
-# Keys are the names of the modifier bit.  Set the value to 1 to use it.
-my_edef.inclusion_masks = {"pockcel_perm": 1, "BKRCUS": 1}
-my_edef.exclusion_maks = {"TS2": 1, "TS3": 1, "TS5": 1, "TS6": 1}
+# You can set inclusion/exclusion masks with a list of modifier bits.
+# Use the name for each bit.  The names are case sensitive, so watch out!
+my_edef.inclusion_masks = ["pockcel_perm", "BKRCUS"]
+my_edef.exclusion_maks = ["TS2", "TS3", "TS5", "TS6"]
 
 # Set number of measurements to acquire.  Your value will be clipped to the
 # limits of the BSA system (currenly -1 to 2800).
