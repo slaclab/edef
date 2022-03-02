@@ -34,3 +34,14 @@ print(dl2_bpm_data)
 
 #Please release your edef when you are done!
 my_edef.release()
+
+# You can also use an event definition using python's "with" keyword.
+# This will automatically release the edef when the "with" block is complete.
+with EventDefinition("Matt's EDEF", user="mgibbs") as my_other_edef:
+    my_other_edef.n_measurements = 500
+    my_other_edef.start()
+    while not my_other_edef.is_acquisition_complete():
+        time.sleep(0.1)
+    data = my_other_edef.get_data_buffer("BPMS:LTUH:250:X")
+    print(data)
+
