@@ -7,7 +7,6 @@ import os
 import time
 from functools import partial
 from contextlib import contextmanager
-from epics_batch_get import batch_get
 
 NUM_MASK_BITS = 140
 
@@ -404,7 +403,8 @@ class EventDefinition(object):
         else:
             pv_list = [self.buffer_pv(pv=a_pv, suffix=suffix) for a_pv in pv]
             suffix_length = len(suffix + str(self.edef_num))
-            buff_dict = batch_get(pv_list)
+            buff_list = epics.caget_many(pv_list)
+            buff_dict = dict(zip(pv_list, buff_list))
             if self.n_measurements > 0:
                 buff_dict = {a_pv[:-suffix_length]: buff_dict[a_pv][0:self.n_measurements] for a_pv in buff_dict}
             else:
@@ -457,7 +457,8 @@ class EventDefinition(object):
             return epics.caget("{pv}{num}".format(pv=pv, num=self.edef_num))
         else:
             pv_list = ["{a_pv}{num}".format(a_pv=a_pv, num=self.edef_num) for a_pv in pv]
-            values = batch_get(pv_list)
+            value_list = epics.caget_many(pv_list)
+            values = dict(zip(pv_list, value_list))
             return {a_pv[:-len(str(self.edef_num))]: values[a_pv] for a_pv in values}
 
     def num_acquired(self):
