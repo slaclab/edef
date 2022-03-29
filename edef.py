@@ -2,6 +2,7 @@
 Author: Matt Gibbs (mgibbs@slac.stanford.edu)
 """
 
+import sys
 import epics
 import os
 import time
@@ -453,7 +454,10 @@ class EventDefinition(object):
         Returns:
             The latest value of the pv.
         """
-        if isinstance(pv, (str, unicode)):
+        string_types = (str)
+        if sys.version_info[0] == 2:
+            string_types = (str, unicode)
+        if isinstance(pv, string_types:
             return epics.caget("{pv}{num}".format(pv=pv, num=self.edef_num))
         else:
             pv_list = ["{a_pv}{num}".format(a_pv=a_pv, num=self.edef_num) for a_pv in pv]
