@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='edef',
-    version='1.3.1',
+    version='1.3.2',
     description='A module for performing Beam Synchronous Acquisition (BSA) via the LCLS Event Definition system.',
     long_description=long_description,
 

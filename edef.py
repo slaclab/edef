@@ -395,7 +395,10 @@ class EventDefinition(object):
         return "{pv}{suffix}{num}".format(pv=pv, suffix=suffix, num=self.edef_num)
 
     def get_buffer(self, pv, suffix='HST'):
-        if isinstance(pv, (str, unicode)):
+        string_types = (str)
+        if sys.version_info[0] == 2:
+            string_types = (str, unicode)
+        if isinstance(pv, string_types):
             buff = epics.caget(self.buffer_pv(pv=pv, suffix=suffix))
             if self.n_measurements > 0:
                 #If this isn't a rolling buffer, trim it to only include the collected data.
@@ -457,7 +460,7 @@ class EventDefinition(object):
         string_types = (str)
         if sys.version_info[0] == 2:
             string_types = (str, unicode)
-        if isinstance(pv, string_types:
+        if isinstance(pv, string_types):
             return epics.caget("{pv}{num}".format(pv=pv, num=self.edef_num))
         else:
             pv_list = ["{a_pv}{num}".format(a_pv=a_pv, num=self.edef_num) for a_pv in pv]
