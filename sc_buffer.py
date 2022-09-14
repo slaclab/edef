@@ -60,10 +60,10 @@ class BSABuffer(object):
         time_elapsed = 0.0
         while time_elapsed < timeout:
             for num in range(21,65):
-                buffer_name = epics.caget("{prefix}:{num}:NAME".format(sys=sys, num=num))
+                buffer_name = epics.caget("{prefix}:{num}:NAME".format(prefix=self.prefix, sys=sys, num=num))
                 if buffer_name == name:
                     if user is not None:
-                        epics.caput("{prefix}:{num}:USERNAME".format(sys=sys, num=num), str(user))
+                        epics.caput("{prefix}:{num}:USERNAME".format(prefix=self.prefix, sys=sys, num=num), str(user))
                     return num
             time.sleep(0.05)
             time_elapsed += 0.05
@@ -224,7 +224,7 @@ class BSABuffer(object):
                 bit_mask = bit_mask | (1 << bit_num)
         self.destination_mask_pv.put(bit_mask)
 
-    def clear_masks(self, mask_type):
+    def clear_masks(self):
         self.destination_mask_pv.put(0)
 
     def populate_bit_mask_name_cache(self):
