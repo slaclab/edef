@@ -11,8 +11,8 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='edef',
-    version='1.3.2',
-    description='A module for performing Beam Synchronous Acquisition (BSA) via the LCLS Event Definition system.',
+    version='2.0.0',
+    description='A module for performing Beam Synchronous Acquisition (BSA) via the LCLS Event Definition system or LCLS-II BSA Buffer system.',
     long_description=long_description,
 
     # The project's main homepage.
@@ -31,7 +31,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
 
         # Pick your license as you wish (should match "license" above)
         #'License :: OSI Approved :: MIT License',
@@ -46,11 +46,11 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    #packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    packages=find_packages(exclude=['contrib', 'docs', 'tests']),
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:
-    py_modules=["edef"],
+    #py_modules=["edef"],
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's

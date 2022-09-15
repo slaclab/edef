@@ -21,6 +21,7 @@ class BSABuffer(object):
             self.number = self.reserve(name, user=user)
         else:
             self.number = number
+        self.sys = "SYS0"
         self.n_avg_pv = epics.PV("{prefix}:{num}:AVGCNT".format(prefix=self.prefix, num=self.number))
         self.n_measurements_pv = epics.PV("{prefix}:{num}:MEASCNT".format(prefix=self.prefix, num=self.number))
         self.ctrl_pv = epics.PV("{prefix}:{num}:CTRL".format(prefix=self.prefix, num=self.number))
@@ -32,6 +33,8 @@ class BSABuffer(object):
         self.ac_rate_pv = epics.PV("{prefix}:{num}:ACRATE".format(prefix=self.prefix, num=self.number))
         self.timeslot_mask_pv = epics.PV("{prefix}:{num}:TSLOTMASK".format(prefix=self.prefix, num=self.number))
         self.measurement_severity_pv = epics.PV("{prefix}:{num}:MEASSEVR".format(prefix=self.prefix, num=self.number))
+        self.bit_mask_name_cache = {}
+        self.bit_mask_reverse_cache = {}
         if number is None:
             #We only change the configuration of the edef if it is a brand new one.
             self.n_avg = avg
@@ -54,7 +57,17 @@ class BSABuffer(object):
         if ctrl_callback is not None:
             self.ctrl_callback = ctrl_callback
 
+    @classmethod
+    def num_buffers_available(cls):
+        return epics.caget("{prefix}:NFREEBSA".format(prefix=cls.prefix))
+    
+    @classmethod
+    def check_available(cls):
+        return cls.num_buffers_available() > 0
+
     def reserve(self, name, user=None):
+        if not self.check_available():
+            raise Exception("No BSA buffers available.")
         epics.caput("{prefix}:BSANAME".format(prefix=self.prefix), name, wait=True)
         timeout = 5.0
         time_elapsed = 0.0
@@ -68,10 +81,8 @@ class BSABuffer(object):
             time.sleep(0.05)
             time_elapsed += 0.05
         #If you get this far, the edef wasn't reserved.
-        #Check if there just aren't any EDEFs.
-        buffers_remaining_pv = "{prefix}:NFREEBSA".format(prefix=self.prefix)
-        num_remaining = epics.caget(buffers_remaining_pv)
-        if num_remaining < 1:
+        #Check again if there just aren't any EDEFs.
+        if not check_available():
             raise Exception("No BSA buffers available.")
         else:
             raise Exception("Could not reserve a BSA buffer.")
@@ -229,7 +240,7 @@ class BSABuffer(object):
 
     def populate_bit_mask_name_cache(self):
         bit_nums = list(range(0, NUM_MASK_BITS + 1))
-        bit_name_pvs = ["{prefix}:{num}:DST{n}.DESC".format(prefix=self.prefix, n=n) for n in bit_nums]
+        bit_name_pvs = ["{prefix}:{num}:DST{n}.DESC".format(prefix=self.prefix, num=self.number, n=n) for n in bit_nums]
         bit_names = epics.caget_many(bit_name_pvs)
         self.bit_mask_name_cache = {bit_name: bit_num for bit_name, bit_num in zip(bit_names, bit_nums)}
         self.bit_mask_reverse_cache = {bit_num: bit_name for bit_name, bit_num in zip(bit_names, bit_nums)}
@@ -285,7 +296,7 @@ class BSABuffer(object):
         """
         if not self.is_reserved():
             raise Exception("BSA Buffer was not reserved, could not acquire data.")
-        num_to_acquire = self.num_to_acquire_pv.get()
+        num_to_acquire = self.n_measurements_pv.get()
         num_acquired = self.num_acquired_pv.get()
         return num_acquired == num_to_acquire
 
