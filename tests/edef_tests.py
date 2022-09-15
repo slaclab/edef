@@ -138,7 +138,7 @@ class AcquisitionTest(unittest.TestCase):
 	def setUp(self):
 		self.num_meas = 55
 		self.edef = edef.EventDefinition("edef.py unit tests " + str(randint(0,255)), user=os.uname()[1], avg=1, measurements=self.num_meas)
-		self.pv_list = ["BPMS:UNDH:{}90:X".format(num) for num in range(13,51)]
+		self.pv_list = ["BPMS:UNDH:{}90:X".format(num) for num in range(14,51)]
 
 	def test_single_acquisition(self):
 		if self.edef.sys != "SYS0":
