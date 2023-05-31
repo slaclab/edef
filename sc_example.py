@@ -10,17 +10,28 @@ my_buffer.destination_masks = ["LASER", "SC_DIAG0"]
 # Set number of measurements to acquire.  Your value will be clipped to the
 # limits of the BSA system.
 my_buffer.n_measurements = 500
+
+# You can set a number of shots to average for each measurement.
+# Total number of shots to acquire will be n_measurements * n_avg.
+my_buffer.n_avg = 10
+
+# +
+
 # Now, start the acquisition.
 my_buffer.start()
-
 # Wait for the buffer to collect all 500 points.  Alternatively, you can 
 # set a callback function to run when acquisition is complete instead.
 while not my_buffer.is_acquisition_complete():
     time.sleep(0.1)
- 
+print(my_buffer.get_data_buffer("BPMS:GUNB:314:X"))
+print(len(my_buffer.get_data_buffer("BPMS:GUNB:314:X")))
+# -
+
+
+
 def my_done_callback():
     print(my_buffer.get_data_buffer("BPMS:GUNB:314:X"))
-    
+
 my_buffer.done_callback = my_done_callback
 my_buffer.start()
 
@@ -44,3 +55,5 @@ with BSABuffer("Matt's BSA", user="mgibbs") as my_other_buffer:
     data = my_other_buffer.get_data_buffer("BPMS:GUNB:314:X")
     print(data)
 #When you exit the "with" block, the buffer releases itself.
+
+
