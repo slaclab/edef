@@ -139,7 +139,7 @@ class BSABuffer(object):
         lopr = self.n_avg_pv.get_ctrlvars()['lower_ctrl_limit']
         hopr = self.n_avg_pv.get_ctrlvars()['upper_ctrl_limit']
         self.n_avg_pv.put(min(hopr, max(lopr, navg)))
-    
+
     @property
     def avg_callback(self):
         """A method to be called when the number of averages changes.
@@ -206,6 +206,18 @@ class BSABuffer(object):
     def _measurements_callback_full(self, user_cb, value=None, **kw):
         user_cb(value)
     
+    @property
+    def destination_mode(self):
+        """The number of shots to average for each measurement.
+        When setting n_avg, your value will be clipped to the upper and lower limits
+        of the BSA system.
+        """
+        return self.destination_mode_pv.get()
+    
+    @destination_mode.setter
+    def destination_mode(self, destmode):
+        self.destination_mode_pv.put(destmode)
+
     @property
     def destination_masks(self):
         if len(self.bit_mask_reverse_cache) == 0:
