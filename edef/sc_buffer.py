@@ -72,7 +72,7 @@ class BSABuffer(object):
         timeout = 5.0
         time_elapsed = 0.0
         while time_elapsed < timeout:
-            for num in range(21,65):
+            for num in range(21,50):
                 buffer_name = epics.caget("{prefix}:{num}:NAME".format(prefix=self.prefix, sys=sys, num=num))
                 if buffer_name == name:
                     if user is not None:
