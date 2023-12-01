@@ -15,6 +15,7 @@ NUM_MASK_BITS = 9
 Instantiate a BSABuffer object to reserve one of the buffers.  Configure it,
 then start data aquisition with the 'start' method."""
 class BSABuffer(object):
+    print('dev bsabuffer!')
     prefix = "BSA:SYS0:1"
     def __init__(self, name, user=None, number=None, avg=1, measurements=1000, destination_mode=None, destination_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
         if number is None:
@@ -33,6 +34,7 @@ class BSABuffer(object):
         self.ac_rate_pv = epics.PV("{prefix}:{num}:ACRATE".format(prefix=self.prefix, num=self.number))
         self.timeslot_mask_pv = epics.PV("{prefix}:{num}:TSLOTMASK".format(prefix=self.prefix, num=self.number))
         self.measurement_severity_pv = epics.PV("{prefix}:{num}:MEASSEVR".format(prefix=self.prefix, num=self.number))
+        self.data_ready_pv = epics.PV("{prefix}:{num}:HST_READY".format(prefix=self.prefix, num=self.number))
         self.bit_mask_name_cache = {}
         self.bit_mask_reverse_cache = {}
         if number is None:
@@ -72,7 +74,7 @@ class BSABuffer(object):
         timeout = 5.0
         time_elapsed = 0.0
         while time_elapsed < timeout:
-            for num in range(21,50):
+            for num in range(21, 50):
                 buffer_name = epics.caget("{prefix}:{num}:NAME".format(prefix=self.prefix, sys=sys, num=num))
                 if buffer_name == name:
                     if user is not None:
@@ -312,6 +314,14 @@ class BSABuffer(object):
         num_acquired = self.num_acquired_pv.get()
         return num_acquired == num_to_acquire
 
+    def is_data_ready(self):
+        """Checks if the BSA data Ready indicator is indicating Ready.
+        Returns:
+            bool: True if data ready indicator indicates ready, False otherwise
+        """
+        ready = bool(self.data_ready_pv.get())
+        return ready
+
     def buffer_pv(self, pv, suffix='HST'):
         return "{pv}{suffix}{num}".format(pv=pv, suffix=suffix, num=self.number)
 
@@ -319,21 +329,23 @@ class BSABuffer(object):
         string_types = (str)
         if sys.version_info[0] == 2:
             string_types = (str, unicode)
-        if isinstance(pv, string_types):
+        actual_acquired = self.num_acquired()
+        if actual_acquired > 0: # If 0 points, waiting for 'data ready' is pointless
+            print("Checking if BSA data is ready to retrieve...")
+            while not self.is_data_ready():
+                time.sleep(0.05)
+            print("BSA Data ready for retrieval")
+        if isinstance(pv, string_types):  # Single PV
             buff = epics.caget(self.buffer_pv(pv=pv, suffix=suffix))
-            if self.n_measurements > 0:
-                #If this isn't a rolling buffer, trim it to only include the collected data.
-                buff = buff[0:self.n_measurements]
+            #If this isn't a rolling buffer, trim it to only include the collected data.
+            buff = buff[0:actual_acquired]
             return buff
-        else:
+        else:  # Multiple PVs
             pv_list = [self.buffer_pv(pv=a_pv, suffix=suffix) for a_pv in pv]
             suffix_length = len(suffix + str(self.number))
             buff_list = epics.caget_many(pv_list)
             buff_dict = dict(zip(pv_list, buff_list))
-            if self.n_measurements > 0:
-                buff_dict = {a_pv[:-suffix_length]: buff_dict[a_pv][0:self.n_measurements] for a_pv in buff_dict}
-            else:
-                buff_dict = {a_pv[:-suffix_length]: buff_dict[a_pv] for a_pv in buff_dict}
+            buff_dict = {a_pv[:-suffix_length]: buff_dict[a_pv][0:actual_acquired] for a_pv in buff_dict}
             return buff_dict
 
     def get_data_buffer(self, pv):
