@@ -15,7 +15,6 @@ NUM_MASK_BITS = 9
 Instantiate a BSABuffer object to reserve one of the buffers.  Configure it,
 then start data aquisition with the 'start' method."""
 class BSABuffer(object):
-    print('dev bsabuffer!')
     prefix = "BSA:SYS0:1"
     def __init__(self, name, user=None, number=None, avg=1, measurements=1000, destination_mode=None, destination_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
         if number is None:
