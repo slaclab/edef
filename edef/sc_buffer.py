@@ -33,8 +33,10 @@ class BSABuffer(object):
         self.ac_rate_pv = epics.PV("{prefix}:{num}:ACRATE".format(prefix=self.prefix, num=self.number))
         self.timeslot_mask_pv = epics.PV("{prefix}:{num}:TSLOTMASK".format(prefix=self.prefix, num=self.number))
         self.measurement_severity_pv = epics.PV("{prefix}:{num}:MEASSEVR".format(prefix=self.prefix, num=self.number))
+        self.hst_ready_pv = "{prefix}:{num}:HST_READY".format(prefix=self.prefix, num=self.number)
         self.bit_mask_name_cache = {}
         self.bit_mask_reverse_cache = {}
+        self.acquisition_complete = False
         if number is None:
             #We only change the configuration of the edef if it is a brand new one.
             self.n_avg = avg
@@ -82,7 +84,7 @@ class BSABuffer(object):
             time_elapsed += 0.05
         #If you get this far, the edef wasn't reserved.
         #Check again if there just aren't any EDEFs.
-        if not check_available():
+        if not self.check_available():
             raise Exception("No BSA buffers available.")
         else:
             raise Exception("Could not reserve a BSA buffer.")
@@ -264,6 +266,9 @@ class BSABuffer(object):
         Returns:
             bool: True if successful, False otherwise.
         """ 
+        
+        self.acquisition_complete = False
+        
         if not self.is_reserved():
             raise Exception("BSA Buffer was not reserved, cannot acquire data.")
             return False
@@ -298,19 +303,24 @@ class BSABuffer(object):
         while not self.is_acquisition_complete():
             time.sleep(0.05)
 
+    def set_acquisition_complete(self, *args, **kwargs):
+            self.acquisition_complete = True
+            epics.camonitor_clear(self.hst_ready_pv)
+
     def is_acquisition_complete(self):
         """Checks if the buffer is done collecting data.
-        Looks to see if the "Total Acquired so far" PV matches the "Total to Acquire" PV.
-        If the two match, it is assumed that data acquisition is complete.
+        Sets a camonitor on the HST_READY PV.  When the PV reports "Ready", set 
+        acquisition complete.
         Raises an exception if the buffer was not properly reserved.
         Returns:
             bool: True if acquisition is complete, False otherwise.
         """
+        
         if not self.is_reserved():
             raise Exception("BSA Buffer was not reserved, could not acquire data.")
-        num_to_acquire = self.n_measurements_pv.get()
-        num_acquired = self.num_acquired_pv.get()
-        return num_acquired == num_to_acquire
+        
+        hst_ready_monitor = epics.camonitor(self.hst_ready_pv, callback = self.set_acquisition_complete)
+        return self.acquisition_complete
 
     def buffer_pv(self, pv, suffix='HST'):
         return "{pv}{suffix}{num}".format(pv=pv, suffix=suffix, num=self.number)
