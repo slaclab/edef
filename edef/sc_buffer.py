@@ -16,7 +16,7 @@ Instantiate a BSABuffer object to reserve one of the buffers.  Configure it,
 then start data aquisition with the 'start' method."""
 class BSABuffer(object):
     prefix = "BSA:SYS0:1"
-    def __init__(self, name, user=None, number=None, avg=1, measurements=1000, destination_mode=None, destination_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None):
+    def __init__(self, name, user=None, number=None, avg=1, measurements=1000, destination_mode=None, destination_masks=None, avg_callback=None, measurements_callback=None, ctrl_callback=None, rate_mode=None, fixed_rate=None, ac_rate=None, timeslots=None):
         if number is None:
             self.number = self.reserve(name, user=user)
         else:
@@ -45,6 +45,14 @@ class BSABuffer(object):
                 self.destination_mode = destination_mode
             if destination_masks is not None:
                 self.destination_masks = destination_masks
+            if rate_mode is not None:
+                self.rate_mode = rate_mode
+            if fixed_rate is not None:
+                self.fixed_rate = fixed_rate
+            if ac_rate is not None:
+                self.ac_rate = ac_rate
+            if timeslots is not None:
+                self.timeslots = timeslots
         # Now that we've set initial values for PVs, we can install callbacks.
         self._avg_callback = None
         self._avg_callback_index = None
@@ -210,9 +218,9 @@ class BSABuffer(object):
     
     @property
     def destination_mode(self):
-        """The number of shots to average for each measurement.
-        When setting n_avg, your value will be clipped to the upper and lower limits
-        of the BSA system.
+        """
+        Determines whether destination masks are used to include pulses ('Inclusion'), exclude pulses ('Exclusion'),
+        or are ignored ('Disable').
         """
         return self.destination_mode_pv.get()
     
@@ -222,6 +230,14 @@ class BSABuffer(object):
 
     @property
     def destination_masks(self):
+        """
+        A list of destination masks used to filter pulses.
+        Works in combination with destination_mode.  For a list of 
+        masks, please see the BSA Buffer PyDM panel.
+        
+        For example, you could set this to ['SC_BSYD', 'SC_SXR'] to select
+        pulses marked with SC_BSYD or SC_SXR as the destination.
+        """
         if len(self.bit_mask_reverse_cache) == 0:
             self.populate_bit_mask_name_cache()
         masks = []
@@ -259,6 +275,70 @@ class BSABuffer(object):
         self.bit_mask_name_cache = {bit_name: bit_num for bit_name, bit_num in zip(bit_names, bit_nums)}
         self.bit_mask_reverse_cache = {bit_num: bit_name for bit_name, bit_num in zip(bit_names, bit_nums)}
 
+    @property
+    def rate_mode(self):
+        """
+        Determines which rate mode ("Fixed Rate", "AC Rate", or "Exp Seq") is
+        used when setting a rate filter.
+        """
+        return self.rate_mode_pv.get()
+        
+    @rate_mode.setter
+    def rate_mode(self, mode):
+        self.rate_mode_pv.put(mode)
+
+    @property
+    def fixed_rate(self):
+        """
+        Sets the fixed rate to filter to.
+        Only has an effect if rate_mode is set to "Fixed Rate".
+        
+        For a list of available fixed rates, please see the BSA Buffer PyDM screen (expert tab).
+        You must supply the rate string (including 'Hz'), integers won't work here.
+        """
+        return self.fixed_rate_pv.get()
+    
+    @fixed_rate.setter
+    def fixed_rate(self, rate):
+        self.fixed_rate_pv.put(rate)
+
+    @property
+    def ac_rate(self):
+        """
+        This sets the AC rate to filter to.
+        Only has an effect if rate_mode is set to "AC Rate".
+        
+        For a list of available AC rates, please see the BSA Buffer PyDM screen (expert tab).
+        """
+        return self.ac_rate_pv.get()
+    
+    @ac_rate.setter
+    def ac_rate(self, rate):
+        self.ac_rate_pv.put(rate)
+    
+    @property
+    def timeslots(self):
+        """
+        This sets the timeslots used to filter pulses.
+        Only has an effect if rate_mode is set to "AC Rate".
+        
+        You can supply an integer (1 through 6), or a list of integers (like [1, 4]).
+        When getting the value, will always return a list, even if only one timeslot is active.
+        """
+        bitmask = self.timeslot_mask_pv.get()
+        active_timeslots = []
+        for ts in range(1,7):
+            if bitmask & (1 << (ts - 1)) > 1:
+                active_timeslots.append(ts)
+    
+    @timeslots.setter
+    def timeslots(self, ts_list):
+        if isinstance(ts_list, int):
+            ts_list = [ts_list]
+        for ts in range(1,7):
+            active = 1 if ts in ts_list else 0
+            epics.caput(f"{self.prefix}:{self.num}:TS{ts}", active)
+    
     def start(self, callback=None):
         """Starts data acquisition. 
         This is equivalent to clicking the 'On' button on the buffer's EDM panel.
@@ -273,8 +353,7 @@ class BSABuffer(object):
             raise Exception("BSA Buffer was not reserved, cannot acquire data.")
             return False
         if callback is not None:
-            num_to_acquire = self.num_to_acquire_pv.get()
-            full_done_cb = partial(self._done_callback, num_to_acquire, callback)
+            full_done_cb = partial(self._done_callback, callback)
             self.num_acquired_pv.add_callback(full_done_cb)
         self.ctrl_pv.put(1)
         return True
@@ -292,12 +371,9 @@ class BSABuffer(object):
         self.ctrl_pv.put(0)
         return True
 
-    def _done_callback(self, num_to_acquire, user_cb, value=None, cb_info=None, **kws):
-        if value != num_to_acquire:
-            return
-        else:
-            user_cb()
-            cb_info[1].remove_callback(cb_info[0])  
+    def _done_callback(self, user_cb, value=None, cb_info=None, **kws):
+        user_cb()
+        cb_info[1].remove_callback(cb_info[0])  
 
     def wait_for_complete(self):
         while not self.is_acquisition_complete():
