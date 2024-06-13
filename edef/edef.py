@@ -129,6 +129,15 @@ class EventDefinition(object):
             return False
 
     @property
+    def number(self):
+        """Alias for self.edef_num.
+        This is for compatibility with the SC Linac BSABuffer class.
+        
+        Returns:
+            int: Number of the event definition."""
+        return self.edef_num
+
+    @property
     def ctrl_callback(self):
         """A method to be called when the edef's ctrl state (whether or not the edef is 'on') changes.
         
