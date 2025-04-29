@@ -258,15 +258,27 @@ class BSABuffer(object):
         if isinstance(masks, dict):
             for mask, val in masks.iteritems():
                 bit_num = self.bit_mask_name_cache[mask]
+                destination_selection_pv = "{prefix}:{num}:DST{n}".format(prefix=self.prefix, num=self.number, n=bit_num)
+                epics.caput(destination_selection_pv, 1)
                 bit_mask = bit_mask | (val << bit_num)
         else:
             for mask in masks:
                 bit_num = self.bit_mask_name_cache[mask]
+                destination_selection_pv = "{prefix}:{num}:DST{n}".format(prefix=self.prefix, num=self.number, n=bit_num)
+                epics.caput(destination_selection_pv, 1)
                 bit_mask = bit_mask | (1 << bit_num)
         self.destination_mask_pv.put(bit_mask)
+        
+    @property
+    def destination_selections(self):
+        if len(self.bit_mask_name_cache) == 0:
+            self.populate_bit_mask_name_cache()
 
     def clear_masks(self):
         self.destination_mask_pv.put(0)
+        for i in range(0, 6):
+            destination_selection_pv = "{prefix}:{num}:DST{n}".format(prefix=self.prefix, num=self.number, n=i)
+            epics.caput(destination_selection_pv, 0)
 
     def populate_bit_mask_name_cache(self):
         bit_nums = list(range(0, NUM_MASK_BITS + 1))
