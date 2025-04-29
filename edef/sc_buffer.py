@@ -268,11 +268,6 @@ class BSABuffer(object):
                 epics.caput(destination_selection_pv, 1)
                 bit_mask = bit_mask | (1 << bit_num)
         self.destination_mask_pv.put(bit_mask)
-        
-    @property
-    def destination_selections(self):
-        if len(self.bit_mask_name_cache) == 0:
-            self.populate_bit_mask_name_cache()
 
     def clear_masks(self):
         self.destination_mask_pv.put(0)
