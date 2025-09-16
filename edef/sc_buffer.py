@@ -363,6 +363,14 @@ class BSABuffer(object):
             full_done_cb = partial(self._done_callback, callback)
             self.num_acquired_pv.add_callback(full_done_cb)
         self.ctrl_pv.put(1)
+        
+        time_out=1
+        start=time.time()
+        while self.is_acquisition_complete():#make sure the data ready flag switches before proceeding
+            time.sleep(.01)#wait a small ammount of time
+            if time.time() - start >= time_out:# time out after a while
+                raise Exception("BSA Buffer was not able to start, cannot acquire data.")
+                return False
         return True
 
     def stop(self):
